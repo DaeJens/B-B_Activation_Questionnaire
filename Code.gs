@@ -3,7 +3,7 @@
  * Paste into Extensions > Apps Script in the Google Sheet, run setup() once,
  * then Deploy > New deployment > Web app (Execute as: Me, Access: Anyone).
  */
-const TOKEN = 'change-me';
+const TOKEN = {TOKEN};
 const INV = 'Inventory', LOG = 'Log', SET = 'Settings';
 
 // Column layout of the Inventory tab
