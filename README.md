@@ -6,10 +6,10 @@ A three-question iPad quiz for the *reHome, Improved* Home Depot wall activation
 
 ```
 iPad (Safari, Guided Access)  ──POST──▶  Google Apps Script web app  ──▶  Google Sheet
-   questionnaire.html                       Code.gs                        Inventory / Log / Settings
+   index.html                       Code.gs                        Inventory / Log / Settings
 ```
 
-- **`questionnaire.html`** is the guest-facing page. It scores the answers into a ranked list of prizes and sends that list to the script.
+- **`index.html`** is the guest-facing page. It scores the answers into a ranked list of prizes and sends that list to the script.
 - **`Code.gs`** runs in Google Apps Script, attached to the Sheet. It walks the ranked list, awards the first prize still in stock, updates the counts, and writes a log row. It processes one claim at a time, so two iPads can never hand out the same last prize.
 - **The Google Sheet** is the source of truth for inventory. Edit quotas there at any time.
 
@@ -33,7 +33,10 @@ iPad (Safari, Guided Access)  ──POST──▶  Google Apps Script web app  �
 
 | File | Purpose |
 |---|---|
-| `questionnaire.html` | The quiz page (single file, no build step) |
+| `index.html` | The quiz page (single file, no build step) |
+| `assets/logo.png` | Home, Improved logo (transparent background) |
+| `assets/pattern.jpg` | Tool pattern shown on the start screen |
+| `assets/fonts/` | Bundled fonts (Open Sans, Libre Baskerville Medium) so the iPads don't need the internet for type |
 | `README.md` | This file |
 | `.env` | Holds the shared token. **Never committed** (see `.gitignore`) |
 | `.gitignore` | Keeps `.env` out of the repository |
@@ -44,14 +47,14 @@ The Apps Script code lives in the Google Sheet under **Extensions → Apps Scrip
 
 Two values must match between the page and the script:
 
-| Value | In `questionnaire.html` | In Apps Script (`Code.gs`) |
+| Value | In `index.html` | In Apps Script (`Code.gs`) |
 |---|---|---|
 | Token | `const TOKEN = "..."` | `const TOKEN = '...'` |
 | Web app URL | `const SCRIPT_URL = "..."` | (generated when you deploy) |
 
-The token's value is stored in `.env` for reference. The page is plain static HTML and cannot read `.env` on its own, so the token is copied into `questionnaire.html` by hand.
+The token's value is stored in `.env` for reference. The page is plain static HTML and cannot read `.env` on its own, so the token is copied into `index.html` by hand.
 
-Other settings at the top of the script block in `questionnaire.html`:
+Other settings at the top of the script block in `index.html`:
 
 - `RESULT_SECONDS`: how long a result stays on screen before resetting (default 30)
 - `IDLE_SECONDS`: how long a question screen waits with no touch before resetting (default 45)
@@ -69,15 +72,15 @@ After any later edit to `Code.gs`, redeploy with **Deploy → Manage deployments
 
 ### 2. The page
 
-Paste the web app URL into `SCRIPT_URL` and the token into `TOKEN` in `questionnaire.html`. With `SCRIPT_URL` left empty, the page runs in demo mode with counts kept only on that device.
+Paste the web app URL into `SCRIPT_URL` and the token into `TOKEN` in `index.html`. With `SCRIPT_URL` left empty, the page runs in demo mode with counts kept only on that device.
 
 ### 3. Hosting
 
-Host the page over HTTPS (for example GitHub Pages). On GitHub Pages the page is served at `https://<user>.github.io/<repo>/questionnaire.html`. Renaming the file to `index.html` lets it load at the bare repository URL instead.
+Host the page over HTTPS (for example GitHub Pages). On GitHub Pages the page is served at `https://<user>.github.io/<repo>/`. 
 
 ### 4. iPads
 
-1. Open the page with a device name, for example `.../questionnaire.html?device=iPad1` (and `?device=iPad2` on the second iPad). The name appears in the Log tab.
+1. Open the page with a device name, for example `.../index.html?device=iPad1` (and `?device=iPad2` on the second iPad). The name appears in the Log tab.
 2. Tap **Share → Add to Home Screen**, then open it from the home screen icon.
 3. Triple-click the side or home button to start **Guided Access** so guests can't leave the page.
 
