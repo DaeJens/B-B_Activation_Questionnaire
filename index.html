@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="reHome Quiz">
+<meta name="format-detection" content="telephone=no">
+<title>reHome, Improved Quiz</title>
+<style>
+  :root {
+    --ink: #1c2530;
+    --ink-soft: #55606d;
+    --paper: #f6f7f5;
+    --white: #ffffff;
+    --orange: #f96302;
+    --orange-deep: #c94d00;
+    /* paint-chip colors, one per answer letter / prize */
+    --A: #e8a598;
+    --B: #a9b99b;
+    --C: #2f5ba6;
+    --D: #e2b04b;
+    --A-ink: #1c2530;
+    --B-ink: #1c2530;
+    --C-ink: #ffffff;
+    --D-ink: #1c2530;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--paper); color: var(--ink);
+    font-family: var(--sans);
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  body {
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  }
+  .screen {
+    position: fixed; inset: 0;
+    display: none; flex-direction: column;
+    padding: clamp(28px, 5vh, 64px) clamp(28px, 6vw, 96px);
+  }
+  .screen.active { display: flex; }
+
+  .brand {
+    font-family: var(--serif); font-size: 34px; letter-spacing: -0.02em;
+    font-weight: 600; line-height: 1;
+  }
+
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+  button:focus-visible { outline: 4px solid var(--orange); outline-offset: 4px; }
+
+  /* ---------- Start screen ---------- */
+  #start { justify-content: space-between; }
+  #start .swatches {
+    position: absolute; right: 0; top: 0; bottom: 0; width: min(34vw, 420px);
+    display: flex; flex-direction: column;
+  }
+  #start .swatches i { flex: 1; display: block; }
+  #start .swatches i:nth-child(1) { background: var(--A); }
+  #start .swatches i:nth-child(2) { background: var(--B); }
+  #start .swatches i:nth-child(3) { background: var(--C); }
+  #start .swatches i:nth-child(4) { background: var(--D); }
+  #start .copy { max-width: min(58vw, 760px); position: relative; }
+  #start h1 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: clamp(48px, 8.4vw, 116px); line-height: 0.98; letter-spacing: -0.03em;
+    margin: 0 0 28px;
+  }
+  #start p { font-size: clamp(22px, 2.6vw, 34px); line-height: 1.3; color: var(--ink-soft); margin: 0 0 44px; max-width: 24em; }
+  .cta {
+    display: inline-block; background: var(--orange); color: #fff;
+    font-size: clamp(24px, 2.8vw, 34px); font-weight: 700;
+    padding: 26px 56px; border-radius: 999px;
+    box-shadow: 0 6px 0 var(--orange-deep);
+    transition: transform .08s, box-shadow .08s;
+  }
+  .cta:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--orange-deep); }
+  #start .foot { position: relative; font-size: 20px; color: var(--ink-soft); }
+
+  /* ---------- Question screens ---------- */
+  #question { justify-content: flex-start; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: clamp(20px, 4vh, 48px); }
+  .progress { display: flex; gap: 10px; }
+  .progress b { width: 64px; height: 10px; border-radius: 5px; background: #d9dcd7; transition: background .25s; }
+  .progress b.done { background: var(--ink); }
+  .progress b.now { background: var(--orange); }
+  .back { font-size: 22px; padding: 12px 6px; color: var(--ink-soft); visibility: hidden; }
+  .back.show { visibility: visible; }
+  #qtext {
+    font-family: var(--serif); font-weight: 600; letter-spacing: -0.02em;
+    font-size: clamp(38px, 6vw, 76px); line-height: 1.04; margin: 0 0 clamp(20px, 4vh, 44px);
+    max-width: 16em;
+  }
+  #options { display: grid; gap: clamp(12px, 2vh, 22px); flex: 1; align-content: start; }
+  @media (orientation: landscape) and (min-width: 1000px) {
+    #options { grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(0, 1fr); }
+  }
+  /* an answer is a paint chip: color block plus a white label strip */
+  .chip {
+    display: flex; align-items: stretch; text-align: left;
+    background: var(--white); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 2px 0 rgba(28,37,48,.14), 0 0 0 2px rgba(28,37,48,.08);
+    min-height: 92px;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .chip .block {
+    flex: 0 0 clamp(96px, 14vw, 150px);
+    display: grid; place-items: center;
+    font-family: var(--serif); font-size: clamp(40px, 5vw, 60px); font-weight: 600;
+  }
+  .chip .label { flex: 1; display: flex; align-items: center; padding: 18px 28px; font-size: clamp(24px, 3vw, 36px); font-weight: 600; line-height: 1.15; }
+  .chip[data-l="A"] .block { background: var(--A); color: var(--A-ink); }
+  .chip[data-l="B"] .block { background: var(--B); color: var(--B-ink); }
+  .chip[data-l="C"] .block { background: var(--C); color: var(--C-ink); }
+  .chip[data-l="D"] .block { background: var(--D); color: var(--D-ink); }
+  .chip:active { transform: scale(.985); }
+  .chip.picked { box-shadow: 0 0 0 6px var(--orange); transform: scale(1.01); }
+  #options.locked { pointer-events: none; }
+
+  /* ---------- Loading ---------- */
+  #loading { align-items: center; justify-content: center; text-align: center; }
+  #loading h2 { font-family: var(--serif); font-size: clamp(38px, 5.5vw, 68px); font-weight: 600; letter-spacing: -0.02em; margin: 36px 0 0; }
+  .roller { width: min(60vw, 520px); height: 22px; border-radius: 11px; background: #d9dcd7; overflow: hidden; position: relative; }
+  .roller::after {
+    content: ""; position: absolute; inset: 0; width: 45%;
+    background: linear-gradient(90deg, var(--A), var(--D), var(--B), var(--C));
+    border-radius: 11px; animation: sweep 1.3s ease-in-out infinite alternate;
+  }
+  @keyframes sweep { from { transform: translateX(0); } to { transform: translateX(122%); } }
+
+  /* ---------- Result ---------- */
+  #result { padding: 0; }
+  #result .hero {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    padding: clamp(28px, 5vh, 64px) clamp(28px, 6vw, 96px);
+    background: var(--tint, var(--A)); color: var(--tint-ink, var(--ink));
+  }
+  #result .hero .lead { font-size: clamp(22px, 2.6vw, 32px); margin: 0 0 14px; opacity: .9; }
+  #result .hero h2 {
+    font-family: var(--serif); font-weight: 600; letter-spacing: -0.03em;
+    font-size: clamp(56px, 10vw, 138px); line-height: .96; margin: 0;
+  }
+  #result .details {
+    background: var(--white); padding: clamp(24px, 4vh, 44px) clamp(28px, 6vw, 96px);
+    display: grid; gap: 18px;
+  }
+  #result .gift { font-size: clamp(24px, 3vw, 38px); line-height: 1.25; font-weight: 700; margin: 0; }
+  #result .tip { font-size: clamp(20px, 2.4vw, 30px); line-height: 1.35; margin: 0; color: var(--ink-soft); }
+  #result .tip strong { color: var(--ink); }
+  #result .page { font-size: clamp(20px, 2.4vw, 30px); margin: 0; font-weight: 600; }
+  #result .bonus {
+    background: var(--orange); color: #fff; border-radius: 16px;
+    padding: 20px 28px; font-size: clamp(22px, 2.6vw, 32px); font-weight: 700; line-height: 1.25;
+  }
+  #result .bonus small { display: block; font-weight: 500; font-size: .78em; margin-top: 6px; opacity: .95; }
+  #result .bar { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 6px; }
+  #result .staff { font-size: 20px; color: var(--ink-soft); }
+  #result .done { font-size: 24px; font-weight: 700; padding: 18px 40px; border-radius: 999px; background: var(--ink); color: #fff; }
+  #result .timer { position: absolute; left: 0; bottom: 0; height: 8px; background: var(--orange); width: 100%; transform-origin: left; }
+
+  /* ---------- Message screens (error / sold out) ---------- */
+  .msg { align-items: flex-start; justify-content: center; }
+  .msg h2 { font-family: var(--serif); font-size: clamp(44px, 7vw, 92px); font-weight: 600; letter-spacing: -0.03em; line-height: 1; margin: 22px 0 22px; max-width: 12em; }
+  .msg p { font-size: clamp(22px, 2.8vw, 34px); line-height: 1.3; color: var(--ink-soft); max-width: 24em; margin: 0 0 40px; }
+  .msg .row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .ghost { font-size: 24px; font-weight: 700; padding: 22px 44px; border-radius: 999px; box-shadow: inset 0 0 0 3px var(--ink); }
+
+  #demo {
+    position: fixed; left: 12px; bottom: 10px; z-index: 9; font-size: 14px; font-weight: 700;
+    background: #ffe27a; color: #4a3b00; padding: 6px 12px; border-radius: 8px; display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .roller::after { animation: none; width: 100%; }
+    .chip, .cta { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- START -->
+<section class="screen active" id="start">
+  <div class="swatches" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="brand">B&amp;B</div>
+  <div class="copy">
+    <h1>What’s your next home project?</h1>
+    <p>Answer three quick questions to find out!</p>
+    <button class="cta" id="startBtn">Start the quiz</button>
+  </div>
+  <div class="foot">reHome, Improved</div>
+</section>
+
+<!-- QUESTIONS -->
+<section class="screen" id="question">
+  <div class="topbar">
+    <button class="back" id="backBtn" aria-label="Previous question">Back</button>
+    <div class="progress" id="progress" aria-hidden="true"><b></b><b></b><b></b></div>
+    <div class="brand">B&amp;B</div>
+  </div>
+  <h2 id="qtext"></h2>
+  <div id="options"></div>
+</section>
+
+<!-- LOADING -->
+<section class="screen" id="loading">
+  <div class="roller" aria-hidden="true"></div>
+  <h2>Mixing your match…</h2>
+</section>
+
+<!-- RESULT -->
+<section class="screen" id="result">
+  <div class="hero">
+    <p class="lead" id="rLead">Your next project</p>
+    <h2 id="rTitle"></h2>
+  </div>
+  <div class="details">
+    <p class="gift" id="rGift"></p>
+    <p class="tip" id="rTip"></p>
+    <p class="page" id="rPage"></p>
+    <div class="bonus" id="rBonus" hidden></div>
+    <div class="bar">
+      <span class="staff" id="rStaff"></span>
+      <button class="done" id="doneBtn">Finish</button>
+    </div>
+  </div>
+  <div class="timer" id="rTimer"></div>
+</section>
+
+<!-- ERROR -->
+<section class="screen msg" id="error">
+  <div class="brand">B&amp;B</div>
+  <h2>We couldn’t finish your match.</h2>
+  <p>Please ask a team member for help. Your answers are saved on this screen.</p>
+  <div class="row">
+    <button class="cta" id="retryBtn">Try again</button>
+    <button class="ghost" id="errResetBtn">Start over</button>
+  </div>
+</section>
+
+<!-- SOLD OUT -->
+<section class="screen msg" id="soldout">
+  <div class="brand">B&amp;B</div>
+  <h2>Thanks for playing!</h2>
+  <p>Come chat with our team, and read <em>Home, Improved</em> to get inspired.</p>
+  <div class="row"><button class="cta" id="soldResetBtn">Done</button></div>
+</section>
+
+<div id="demo">DEMO MODE: prizes are counted on this iPad only</div>
+
+<script>
+/* ============================================================
+   SETTINGS: edit these three lines before the event
+   ============================================================ */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEBjHTP-RNyEGjfmRH7oMgQP04T_s-IgHKIQi5gDk6jhOVRaL4I_6RYjuqjF1lQs3WkA/exec";          // paste your Apps Script Web app URL here (leave empty for demo mode)
+const TOKEN      = {TOKEN}; // must match TOKEN in the Apps Script
+const RESULT_SECONDS = 30;      // how long the result stays before auto-reset
+/* Name each iPad by opening the page with ?device=iPad1 or ?device=iPad2 */
+
+const IDLE_SECONDS = 45;        // reset if nobody touches a question screen
+const DEVICE = new URLSearchParams(location.search).get("device") || "iPad";
+
+/* ---------------- Content (from the quiz copy) ---------------- */
+const QUESTIONS = [
+  { q: "What does your home need more of?",
+    a: { A: "Color and pattern", B: "Architectural character", C: "An unexpected statement", D: "Art and personality" } },
+  { q: "Which project sounds the most fun?",
+    a: { A: "Transforming a wall with wallpaper", B: "Adding custom-looking trim", C: "Painting something bold", D: "Creating a gallery wall" } },
+  { q: "Pick your dream room:",
+    a: { A: "Playful and patterned", B: "Classic and elegant", C: "Bold and colorful", D: "Collected and personal" } }
+];
+
+/* letter -> prize. `id` must match the ID column in the sheet. */
+const PRIZES = {
+  A: { id: "ceiling",   card: 1, title: "Painted ceiling",
+       gift: "Your gift: Fariha’s favorite paintbrush for cutting in tricky corners.",
+       tip: "If your ceiling has texture, use a 3/4” nap roller to get into all the crevices", page: 73 },
+  B: { id: "moulding",  card: 2, title: "Picture frame moulding",
+       gift: "Your gift: Work gloves to protect your hands while installing trim.",
+       tip: "Visualize the design using painters tape before cutting any pieces and make sure to put those work gloves on!", page: 153 },
+  C: { id: "wallpaper", card: 3, title: "Painted wallpaper",
+       gift: "Your gift: A mini paint kit plus stencil to DIY your own wallpaper.",
+       tip: "Remember to remove excess paint from the stamp to avoid drips", page: 81 },
+  D: { id: "artwork",   card: 4, title: "Hang artwork",
+       gift: "Your gift: A picture-hanging kit to bring your gallery wall to life.",
+       tip: "Mix in vintage or thrifted frames with new ones to give that wall some character!", page: 239 }
+};
+const BY_ID = Object.fromEntries(Object.entries(PRIZES).map(([l, p]) => [p.id, { ...p, letter: l }]));
+const BONUS = { id: "bonus", card: 5,
+  banner: "Bonus surprise! You also won a $100 The Home Depot gift card!",
+  help: "You’re going to need a little more help.",
+  tip: "Shop your heart out at The Home Depot",
+  read: "Read Home, Improved and get inspired!" };
+
+/* ---------------- Scoring: returns prize IDs, best match first ---------------- */
+function rank(answers) {
+  const counts = { A: 0, B: 0, C: 0, D: 0 };
+  answers.forEach(l => counts[l]++);
+  // Ties: the "which project" answer wins, then Q1, then Q3, then A-D
+  const tie = [answers[1], answers[0], answers[2], "A", "B", "C", "D"];
+  return Object.keys(counts)
+    .sort((x, y) => counts[y] - counts[x] || tie.indexOf(x) - tie.indexOf(y))
+    .map(l => PRIZES[l].id);
+}
+
+/* ---------------- Claim: real (Sheet) or demo (local) ---------------- */
+const DEMO = !SCRIPT_URL;
+async function claim(payload) {
+  if (DEMO) return demoClaim(payload);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    // text/plain avoids a CORS preflight, which Apps Script cannot answer
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST", redirect: "follow", signal: ctrl.signal,
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data;
+  } finally { clearTimeout(timer); }
+}
+function demoClaim(p) {
+  const key = "demoInventory";
+  let inv = JSON.parse(localStorage.getItem(key) || "null") || { ceiling: 3, moulding: 3, wallpaper: 3, artwork: 3, bonus: 2 };
+  let prize = p.ranking.find(id => inv[id] > 0) || null;
+  let bonus = false;
+  if (prize) { inv[prize]--; if (inv.bonus > 0 && Math.random() < 0.3) { inv.bonus--; bonus = true; } }
+  localStorage.setItem(key, JSON.stringify(inv));
+  return new Promise(r => setTimeout(() => r({ prize, bonus }), 400));
+}
+
+/* ---------------- UI state ---------------- */
+const $ = id => document.getElementById(id);
+const screens = ["start", "question", "loading", "result", "error", "soldout"];
+let step = 0, answers = [], pending = null, idleTimer = null, resultTimer = null;
+
+function show(name) {
+  screens.forEach(s => $(s).classList.toggle("active", s === name));
+  clearTimeout(idleTimer); clearTimeout(resultTimer);
+  if (name === "question") armIdle();
+}
+function armIdle() { clearTimeout(idleTimer); idleTimer = setTimeout(reset, IDLE_SECONDS * 1000); }
+function reset() { step = 0; answers = []; pending = null; show("start"); }
+function newId() { return (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2)); }
+
+function renderQuestion() {
+  const { q, a } = QUESTIONS[step];
+  $("qtext").textContent = q;
+  const box = $("options"); box.innerHTML = ""; box.classList.remove("locked");
+  Object.entries(a).forEach(([letter, text]) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.dataset.l = letter;
+    b.innerHTML = '<span class="block">' + letter + '</span><span class="label"></span>';
+    b.querySelector(".label").textContent = text;
+    b.addEventListener("click", () => choose(letter, b));
+    box.appendChild(b);
+  });
+  [...$("progress").children].forEach((el, i) => { el.className = i < step ? "done" : i === step ? "now" : ""; });
+  $("backBtn").classList.toggle("show", step > 0);
+  armIdle();
+}
+
+function choose(letter, el) {
+  $("options").classList.add("locked");
+  el.classList.add("picked");
+  answers[step] = letter;
+  setTimeout(() => {
+    if (step < QUESTIONS.length - 1) { step++; renderQuestion(); }
+    else finish();
+  }, 280);
+}
+
+async function finish() {
+  pending = { token: TOKEN, requestId: newId(), device: DEVICE, answers: answers.slice(), ranking: rank(answers) };
+  await submit();
+}
+
+async function submit() {
+  show("loading");
+  const minWait = new Promise(r => setTimeout(r, 1600)); // let the "mixing" moment land
+  try {
+    const [data] = await Promise.all([claim(pending), minWait]);
+    if (!data.prize) { show("soldout"); return; }
+    showResult(data);
+  } catch (err) {
+    console.error(err);
+    await minWait;
+    show("error");
+  }
+}
+
+function showResult({ prize, bonus }) {
+  const p = BY_ID[prize];
+  const root = document.documentElement.style;
+  root.setProperty("--tint", "var(--" + p.letter + ")");
+  root.setProperty("--tint-ink", "var(--" + p.letter + "-ink)");
+  $("rTitle").textContent = p.title;
+  $("rGift").textContent = p.gift;
+  $("rTip").innerHTML = "<strong>Fariha’s top tip:</strong> ";
+  $("rTip").appendChild(document.createTextNode(p.tip));
+  $("rPage").innerHTML = "See page " + p.page + " in <em>Home, Improved</em>";
+  const bx = $("rBonus");
+  if (bonus) {
+    bx.hidden = false;
+    bx.innerHTML = "";
+    bx.appendChild(document.createTextNode(BONUS.banner));
+    const s = document.createElement("small");
+    s.textContent = BONUS.help + " " + BONUS.tip + ". " + BONUS.read;
+    bx.appendChild(s);
+  } else bx.hidden = true;
+  $("rStaff").textContent = "Team: hand over card " + p.card + (bonus ? " and card " + BONUS.card : "") + " with the gift.";
+  show("result");
+  const t = $("rTimer");
+  t.style.transition = "none"; t.style.transform = "scaleX(1)";
+  void t.offsetWidth;
+  t.style.transition = "transform " + RESULT_SECONDS + "s linear"; t.style.transform = "scaleX(0)";
+  resultTimer = setTimeout(reset, RESULT_SECONDS * 1000);
+}
+
+/* ---------------- Wiring ---------------- */
+$("startBtn").addEventListener("click", () => { step = 0; answers = []; show("question"); renderQuestion(); });
+$("backBtn").addEventListener("click", () => { if (step > 0) { step--; renderQuestion(); } });
+$("doneBtn").addEventListener("click", reset);
+$("retryBtn").addEventListener("click", submit);   // same requestId, so the server never double-awards
+$("errResetBtn").addEventListener("click", reset);
+$("soldResetBtn").addEventListener("click", reset);
+document.addEventListener("touchstart", () => { if ($("question").classList.contains("active")) armIdle(); }, { passive: true });
+document.addEventListener("gesturestart", e => e.preventDefault());
+document.addEventListener("contextmenu", e => e.preventDefault());
+
+if (DEMO) $("demo").style.display = "block";
+else { // wake the Apps Script so the first guest isn't slow, and keep it warm
+  const ping = () => fetch(SCRIPT_URL + "?ping=1").catch(() => {});
+  ping(); setInterval(ping, 4 * 60 * 1000);
+}
+</script>
+</body>
+</html>
