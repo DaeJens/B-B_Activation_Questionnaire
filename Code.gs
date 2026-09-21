@@ -83,36 +83,36 @@ function doPost(e) {
     const left = i => rows[i][COL.QUOTA - 1] - rows[i][COL.AWARDED - 1];
     const find = id => rows.findIndex((r, i) => i > 0 && r[0] === id);
 
-    // Walk the ranking, best match first, and take the first prize still in stock
+    // Bonus $100 gift card: a random draw that REPLACES the regular prize.
+    // A guest who wins it gets only the gift card, and no regular prize is used up.
     let prize = null;
-    for (const id of body.ranking) {
-      const i = find(id);
-      if (i > 0 && left(i) > 0) {
-        sh.getRange(i + 1, COL.AWARDED).setValue(rows[i][COL.AWARDED - 1] + 1);
-        prize = id;
-        break;
-      }
+    const chance = Number(ss.getSheetByName(SET).getRange('B2').getValue()) || 0;
+    const b = find('bonus');
+    if (b > 0 && left(b) > 0 && Math.random() < chance) {
+      sh.getRange(b + 1, COL.AWARDED).setValue(rows[b][COL.AWARDED - 1] + 1);
+      prize = 'bonus';
     }
 
-    // Bonus $100 gift card: random chance, only alongside a normal prize, only while stocked
-    let bonus = false;
-    if (prize) {
-      const chance = Number(ss.getSheetByName(SET).getRange('B2').getValue()) || 0;
-      const b = find('bonus');
-      if (b > 0 && left(b) > 0 && Math.random() < chance) {
-        sh.getRange(b + 1, COL.AWARDED).setValue(rows[b][COL.AWARDED - 1] + 1);
-        bonus = true;
+    // Otherwise walk the ranking, best match first, and take the first prize still in stock
+    if (!prize) {
+      for (const id of body.ranking) {
+        const i = find(id);
+        if (id !== 'bonus' && i > 0 && left(i) > 0) {
+          sh.getRange(i + 1, COL.AWARDED).setValue(rows[i][COL.AWARDED - 1] + 1);
+          prize = id;
+          break;
+        }
       }
     }
 
     ss.getSheetByName(LOG).appendRow([
       new Date(), body.requestId, body.device || '',
       (body.answers || []).join(''), body.ranking.join(' > '),
-      prize || 'NONE (sold out)', bonus ? 'YES' : ''
+      prize || 'NONE (sold out)', prize === 'bonus' ? 'YES' : ''
     ]);
     SpreadsheetApp.flush();
 
-    const result = { prize: prize, bonus: bonus };
+    const result = { prize: prize };
     cache.put('req:' + body.requestId, JSON.stringify(result), 600);
     return json_(result);
   } finally {

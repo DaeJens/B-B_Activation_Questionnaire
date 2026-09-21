@@ -162,17 +162,9 @@
     background: var(--paper); padding: clamp(24px, 4vh, 44px) clamp(28px, 6vw, 96px);
     display: grid; gap: 18px;
   }
-  #result .gift { font-size: clamp(24px, 3vw, 38px); line-height: 1.25; font-weight: 700; margin: 0; }
-  #result .tip { font-size: clamp(20px, 2.4vw, 30px); line-height: 1.35; margin: 0; color: var(--ink-soft); }
-  #result .tip strong { color: var(--ink); }
-  #result .page { font-size: clamp(20px, 2.4vw, 30px); margin: 0; font-weight: 600; }
-  #result .bonus {
-    background: var(--orange); color: #fff; border-radius: 16px;
-    padding: 20px 28px; font-size: clamp(22px, 2.6vw, 32px); font-weight: 700; line-height: 1.25;
-  }
-  #result .bonus small { display: block; font-weight: 500; font-size: .78em; margin-top: 6px; opacity: .95; }
-  #result .bar { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 6px; }
-  #result .staff { font-size: 20px; color: var(--ink-soft); }
+  #result.is-bonus .hero h2 { font-size: clamp(44px, 7.4vw, 104px); line-height: 1.02; max-width: 12em; }
+  #result .window { font-size: clamp(32px, 4.6vw, 60px); line-height: 1.15; font-weight: 700; margin: 0; }
+  #result .bar { display: flex; align-items: center; justify-content: flex-end; gap: 24px; padding-top: 6px; }
   #result .done { font-size: 24px; font-weight: 700; padding: 18px 40px; border-radius: 999px; background: var(--orange); color: var(--btn-text); box-shadow: 0 4px 0 var(--orange-deep); }
   #result .timer { position: absolute; left: 0; bottom: 0; height: 8px; background: var(--orange); width: 100%; transform-origin: left; }
 
@@ -232,12 +224,8 @@
     <h2 id="rTitle"></h2>
   </div>
   <div class="details">
-    <p class="gift" id="rGift"></p>
-    <p class="tip" id="rTip"></p>
-    <p class="page" id="rPage"></p>
-    <div class="bonus" id="rBonus" hidden></div>
+    <p class="window" id="rWindow"></p>
     <div class="bar">
-      <span class="staff" id="rStaff"></span>
       <button class="done" id="doneBtn">Finish</button>
     </div>
   </div>
@@ -289,25 +277,16 @@ const QUESTIONS = [
 
 /* letter -> prize. `id` must match the ID column in the sheet. */
 const PRIZES = {
-  A: { id: "ceiling",   card: 1, title: "Painted ceiling",
-       gift: "Your gift: Fariha’s favorite paintbrush for cutting in tricky corners.",
-       tip: "If your ceiling has texture, use a 3/4” nap roller to get into all the crevices", page: 73 },
-  B: { id: "moulding",  card: 2, title: "Picture frame moulding",
-       gift: "Your gift: Work gloves to protect your hands while installing trim.",
-       tip: "Visualize the design using painters tape before cutting any pieces and make sure to put those work gloves on!", page: 153 },
-  C: { id: "wallpaper", card: 3, title: "Painted wallpaper",
-       gift: "Your gift: A mini paint kit plus stencil to DIY your own wallpaper.",
-       tip: "Remember to remove excess paint from the stamp to avoid drips", page: 81 },
-  D: { id: "artwork",   card: 4, title: "Hang artwork",
-       gift: "Your gift: A picture-hanging kit to bring your gallery wall to life.",
-       tip: "Mix in vintage or thrifted frames with new ones to give that wall some character!", page: 239 }
+  A: { id: "ceiling",   card: 1, window: 1, title: "Painted ceiling" },
+  B: { id: "moulding",  card: 2, window: 2, title: "Picture frame moulding" },
+  C: { id: "wallpaper", card: 3, window: 3, title: "Painted wallpaper" },
+  D: { id: "artwork",   card: 4, window: 2, title: "Hang artwork" }
 };
 const BY_ID = Object.fromEntries(Object.entries(PRIZES).map(([l, p]) => [p.id, { ...p, letter: l }]));
-const BONUS = { id: "bonus", card: 5,
-  banner: "Bonus surprise! You also won a $100 The Home Depot gift card!",
-  help: "You’re going to need a little more help.",
-  tip: "Shop your heart out at The Home Depot",
-  read: "Read Home, Improved and get inspired!" };
+const BONUS = { id: "bonus", card: 5, window: 1,
+  lead: "Bonus surprise!",
+  title: "You won a $100 The Home Depot gift card!" };
+const headTo = n => "Head to Window " + n + " to get your gift!";
 
 /* ---------------- Scoring: returns prize IDs, best match first ---------------- */
 function rank(answers) {
@@ -342,11 +321,12 @@ async function claim(payload) {
 function demoClaim(p) {
   const key = "demoInventory";
   let inv = JSON.parse(localStorage.getItem(key) || "null") || { ceiling: 3, moulding: 3, wallpaper: 3, artwork: 3, bonus: 2 };
-  let prize = p.ranking.find(id => inv[id] > 0) || null;
-  let bonus = false;
-  if (prize) { inv[prize]--; if (inv.bonus > 0 && Math.random() < 0.3) { inv.bonus--; bonus = true; } }
+  let prize = null;
+  if (inv.bonus > 0 && Math.random() < 0.3) { inv.bonus--; prize = "bonus"; }   // bonus replaces the regular prize
+  else prize = p.ranking.find(id => id !== "bonus" && inv[id] > 0) || null;
+  if (prize && prize !== "bonus") inv[prize]--;
   localStorage.setItem(key, JSON.stringify(inv));
-  return new Promise(r => setTimeout(() => r({ prize, bonus }), 400));
+  return new Promise(r => setTimeout(() => r({ prize }), 400));
 }
 
 /* ---------------- UI state ---------------- */
@@ -409,26 +389,17 @@ async function submit() {
   }
 }
 
-function showResult({ prize, bonus }) {
-  const p = BY_ID[prize];
+function showResult({ prize }) {
+  const isBonus = prize === BONUS.id;
+  const p = isBonus ? BONUS : BY_ID[prize];
   const root = document.documentElement.style;
-  root.setProperty("--tint", "var(--" + p.letter + ")");
-  root.setProperty("--tint-ink", "var(--" + p.letter + "-ink)");
+  // the bonus gets its own look: orange background with white text
+  root.setProperty("--tint", isBonus ? "var(--orange)" : "var(--" + p.letter + ")");
+  root.setProperty("--tint-ink", isBonus ? "#ffffff" : "var(--" + p.letter + "-ink)");
+  $("result").classList.toggle("is-bonus", isBonus);
+  $("rLead").textContent = isBonus ? BONUS.lead : "Your next project";
   $("rTitle").textContent = p.title;
-  $("rGift").textContent = p.gift;
-  $("rTip").innerHTML = "<strong>Fariha’s top tip:</strong> ";
-  $("rTip").appendChild(document.createTextNode(p.tip));
-  $("rPage").innerHTML = "See page " + p.page + " in <em>Home, Improved</em>";
-  const bx = $("rBonus");
-  if (bonus) {
-    bx.hidden = false;
-    bx.innerHTML = "";
-    bx.appendChild(document.createTextNode(BONUS.banner));
-    const s = document.createElement("small");
-    s.textContent = BONUS.help + " " + BONUS.tip + ". " + BONUS.read;
-    bx.appendChild(s);
-  } else bx.hidden = true;
-  $("rStaff").textContent = "Team: hand over card " + p.card + (bonus ? " and card " + BONUS.card : "") + " with the gift.";
+  $("rWindow").textContent = headTo(p.window);
   show("result");
   const t = $("rTimer");
   t.style.transition = "none"; t.style.transform = "scaleX(1)";

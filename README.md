@@ -15,18 +15,20 @@ iPad (Safari, Guided Access)  ──POST──▶  Google Apps Script web app  �
 
 ## Prizes and scoring
 
-| Mostly | Project | Gift | Card | Sheet ID |
-|---|---|---|---|---|
-| A | Painted ceiling | Paintbrush | 1 | `ceiling` |
-| B | Picture frame moulding | Work gloves | 2 | `moulding` |
-| C | Painted wallpaper | Mini paint kit and stencil | 3 | `wallpaper` |
-| D | Hang artwork | Picture-hanging kit | 4 | `artwork` |
-| Bonus | $100 The Home Depot gift card | Gift card | 5 | `bonus` |
+| Mostly | Project | Gift | Pickup | Card | Sheet ID |
+|---|---|---|---|---|---|
+| A | Painted ceiling | Paintbrush | Window 1 | 1 | `ceiling` |
+| B | Picture frame moulding | Work gloves | Window 2 | 2 | `moulding` |
+| C | Painted wallpaper | Mini paint kit and stencil | Window 3 | 3 | `wallpaper` |
+| D | Hang artwork | Picture-hanging kit | Window 2 | 4 | `artwork` |
+| Bonus | $100 The Home Depot gift card | Gift card | Window 1 | 5 | `bonus` |
+
+The result screen shows only the project name and "Head to Window N to get your gift!". The gift description, Fariha's tip and page reference are on the printed cards. A guest who wins the $100 gift card sees a bonus screen instead (also pointing to Window 1).
 
 - Each answer scores one point for its letter. The most common letter wins.
 - Ties go to the answer to question 2, then question 1, then question 3.
 - If the top prize is out of stock, the guest gets their next-ranked prize.
-- The $100 gift card is a random bonus on top of a regular prize. The odds are set by `Bonus chance` on the Settings tab (0 pauses it, 1 gives it to everyone).
+- The $100 gift card is a random draw that **replaces** the regular prize: a guest who wins it gets only the gift card, and no regular prize is used up. The odds are set by `Bonus chance` on the Settings tab (0 pauses it, 1 gives it to everyone).
 - If all four regular prizes are gone, guests see a "Thanks for playing" screen.
 
 ## Repository contents
